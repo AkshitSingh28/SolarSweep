@@ -1,0 +1,82 @@
+# config/settings.yaml
+# Solar Panel Cleaner Robot - Configuration
+
+robot:
+  name: "SolarCleaner-v1"
+  panel_length_mm: 2000       # Length of solar panel / rail travel distance
+  panel_width_mm: 1000        # Width (cross-axis travel)
+  cleaning_speed_mmps: 50     # mm per second during cleaning
+  travel_speed_mmps: 150      # mm per second during transit
+
+hardware:
+  # Raspberry Pi GPIO pin assignments
+  gpio:
+    # Drive motors (rail movement - forward/backward)
+    motor_drive_in1: 17
+    motor_drive_in2: 27
+    motor_drive_en:  22
+
+    # Lift motors (up/down on steel rods)
+    motor_lift_in1: 23
+    motor_lift_in2: 24
+    motor_lift_en:  25
+
+    # Cleaning brush/mop motor (center rotating head)
+    motor_brush_in1: 5
+    motor_brush_in2: 6
+    motor_brush_en:  13
+
+    # Relay module pins
+    relay_water_pump: 16
+    relay_aux:        20
+
+    # Limit switches (rail end detection)
+    limit_switch_front: 18
+    limit_switch_rear:  19
+    limit_switch_top:   21
+    limit_switch_bottom: 26
+
+    # Sensors
+    rain_sensor:      12
+    dust_sensor_adc:  0      # MCP3008 channel
+    ir_obstacle:      4
+
+  motor_pwm_freq: 1000       # Hz
+
+  # Spring suspension params
+  suspension:
+    spring_preload_mm: 5
+    max_compression_mm: 15
+
+cleaning:
+  passes: 3                  # Number of back-and-forth passes
+  brush_speed_pct: 80        # Brush motor speed percentage (0-100)
+  water_pulse_ms: 500        # Water pump pulse duration
+  water_interval_s: 10       # Seconds between water pulses
+  lift_height_mm: 30         # How high chassis lifts before traversing
+  overlap_mm: 10             # Overlap between cleaning strips
+
+sensors:
+  dust_threshold: 200        # ADC value above which cleaning is triggered
+  rain_disable: true         # Disable cleaning when rain detected
+  obstacle_stop: true        # Emergency stop on obstacle detection
+
+scheduler:
+  enabled: true
+  jobs:
+    - cron: "0 6 * * *"     # Daily 6 AM
+      mode: "full_cycle"
+    - cron: "0 18 * * *"    # Daily 6 PM
+      mode: "quick_pass"
+
+web:
+  host: "0.0.0.0"
+  port: 5000
+  secret_key: "change-me-in-production"
+  enable_camera_feed: true
+
+logging:
+  level: "INFO"
+  file: "logs/robot.log"
+  max_bytes: 5242880         # 5 MB
+  backup_count: 3
