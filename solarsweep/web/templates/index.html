@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ name }} — SolarSweep</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171c22; --line: #262d36; --text: #e6ebf1;
+    --muted: #8b97a6; --ok: #3fb950; --warn: #d29922; --bad: #f85149;
+    --accent: #58a6ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f5f7fa; --panel:#fff; --line:#dde3ea; --text:#11161c;
+            --muted:#5b6775; --accent:#0b6bcb; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  header { padding:20px 24px; border-bottom:1px solid var(--line);
+           display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  h1 { font-size:19px; margin:0; font-weight:650; letter-spacing:-.01em; }
+  .sub { color:var(--muted); font-size:13px; }
+  main { padding:24px; max-width:1100px; margin:0 auto; display:grid; gap:18px; }
+  .grid { display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+  .card { background:var(--panel); border:1px solid var(--line);
+          border-radius:10px; padding:18px; }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em;
+             color:var(--muted); margin:0 0 14px; font-weight:600; }
+  .state { font-size:30px; font-weight:660; letter-spacing:-.02em; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px;
+          font-size:12px; font-weight:600; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td { padding:5px 0; border-bottom:1px solid var(--line); }
+  td:last-child { text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); }
+  tr:last-child td { border-bottom:0; }
+  .track { height:12px; background:var(--line); border-radius:99px;
+           position:relative; overflow:hidden; margin:14px 0 8px; }
+  .car { position:absolute; top:0; bottom:0; width:14px; border-radius:99px;
+         background:var(--accent); transition:left .4s ease; }
+  .ends { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
+  .buttons { display:flex; gap:9px; flex-wrap:wrap; }
+  button { font:inherit; font-weight:600; font-size:14px; padding:9px 15px;
+           border-radius:7px; border:1px solid var(--line); background:transparent;
+           color:var(--text); cursor:pointer; }
+  button:hover:not(:disabled) { border-color:var(--accent); color:var(--accent); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.danger { border-color:var(--bad); color:var(--bad); }
+  button.danger:hover:not(:disabled) { background:var(--bad); color:#fff; }
+  .banner { padding:11px 14px; border-radius:8px; font-size:14px;
+            border:1px solid var(--bad); color:var(--bad); display:none; }
+  .banner.show { display:block; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:12px; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ name }}</h1>
+  <span class="sub" id="backend">connecting…</span>
+</header>
+
+<main>
+  <div class="banner" id="banner"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>State</h2>
+      <div class="state" id="state">—</div>
+      <div class="sub" id="substate"></div>
+      <div class="track"><div class="car" id="car" style="left:0"></div></div>
+      <div class="ends"><span>home</span><span id="pos">0 mm</span><span id="railend">—</span></div>
+      <div class="note" id="possource"></div>
+    </div>
+
+    <div class="card">
+      <h2>Inputs</h2>
+      <table id="inputs"></table>
+    </div>
+
+    <div class="card">
+      <h2>Cycle</h2>
+      <table id="cycle"></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Control</h2>
+    <div class="buttons">
+      <button id="b-full">Full cycle</button>
+      <button id="b-quick">Quick pass</button>
+      <button id="b-pause">Pause</button>
+      <button id="b-resume">Resume</button>
+      <button id="b-clear">Clear fault</button>
+      <button id="b-estop" class="danger">E-STOP</button>
+    </div>
+    <div class="note" id="authnote"></div>
+  </div>
+
+  <div class="card">
+    <h2>Recent runs</h2>
+    <table id="runs"><tr><td>loading…</td></tr></table>
+  </div>
+</main>
+
+<script>
+// The auth token is never stored server-side in a cookie: paste it once and
+// it lives in this tab's sessionStorage only.
+let token = sessionStorage.getItem("solarsweep_token") || "";
+
+const $ = (id) => document.getElementById(id);
+
+function row(label, value, cls) {
+  return `<tr><td>${label}</td><td class="${cls || ""}">${value}</td></tr>`;
+}
+
+function render(s) {
+  $("backend").textContent =
+    `${s.backend}${s.simulated ? " (simulated — not driving real hardware)" : ""}`;
+  $("state").textContent = s.state.toUpperCase();
+  $("state").className = "state " +
+    (["faulted", "estopped"].includes(s.state) ? "bad"
+      : s.state === "idle" ? "" : "ok");
+
+  const pct = s.rail_travel_mm ? (s.position_mm / s.rail_travel_mm) * 100 : 0;
+  $("car").style.left = `calc(${Math.max(0, Math.min(100, pct))}% - 7px)`;
+  $("pos").textContent = `${s.position_mm} mm`;
+  $("railend").textContent = `${s.rail_travel_mm} mm`;
+  $("possource").textContent =
+    `position is ${s.position_source}` +
+    (s.stall_protection ? "" : " · no encoder: stall detection unavailable");
+  $("substate").textContent = s.paused ? "paused by operator" : "";
+
+  const inp = s.inputs;
+  $("inputs").innerHTML = [
+    row("limit · home", inp.limit_home ? "asserted" : "clear"),
+    row("limit · far", inp.limit_far ? "asserted" : "clear"),
+    row("e-stop", inp.estop ? "ASSERTED" : "clear", inp.estop ? "bad" : "ok"),
+    row("rain", inp.rain ? "detected" : "dry", inp.rain ? "warn" : ""),
+    row("obstacle", inp.obstacle ? "DETECTED" : "clear", inp.obstacle ? "bad" : ""),
+    row("water pressure", inp.water_pressure ? "ok" : "none",
+        inp.water_pressure ? "ok" : "warn"),
+    row("dust", `${s.dust} counts`),
+  ].join("");
+
+  const last = s.last_run;
+  $("cycle").innerHTML = [
+    row("pass", `${s.pass} / ${s.passes_planned}`),
+    row("brush", s.brush_running ? "running" : "stopped"),
+    row("water", s.water_enabled ? `pulsed · ${s.water_pulses}` : "off"),
+    row("homed", s.homed ? "yes" : "no"),
+    row("consecutive faults", s.consecutive_faults,
+        s.consecutive_faults ? "warn" : ""),
+    row("last run", last ? `${last.outcome} (${last.passes} passes)` : "—",
+        last && last.outcome !== "completed" ? "warn" : ""),
+  ].join("");
+
+  const e = s.estop;
+  const banner = $("banner");
+  if (e.tripped) {
+    banner.className = "banner show";
+    banner.textContent = `E-STOP LATCHED — ${e.reason}: ${e.detail}. ` +
+      `Fix the cause, then Clear fault.`;
+  } else {
+    banner.className = "banner";
+  }
+
+  $("b-full").disabled = s.busy || s.state !== "idle";
+  $("b-quick").disabled = s.busy || s.state !== "idle";
+  $("b-pause").disabled = !s.busy || s.paused;
+  $("b-resume").disabled = !s.paused;
+  $("b-clear").disabled = !["faulted", "estopped"].includes(s.state);
+
+  $("authnote").textContent = s.auth_required
+    ? (token ? "authenticated for this tab" : "this server requires a token — "
+       + "you will be prompted on the first command")
+    : "no token required (server is bound to loopback)";
+}
+
+async function post(path, body) {
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers["X-Auth-Token"] = token;
+  const res = await fetch(path, {
+    method: "POST", headers, body: JSON.stringify(body || {}),
+  });
+  if (res.status === 401) {
+    const entered = prompt("Auth token (SOLARSWEEP_WEB_TOKEN):");
+    if (entered) {
+      token = entered;
+      sessionStorage.setItem("solarsweep_token", entered);
+      return post(path, body);
+    }
+  }
+  const data = await res.json().catch(() => ({}));
+  if (data && data.ok === false) alert(data.error || data.message || "command refused");
+  return data;
+}
+
+$("b-full").onclick = () => post("/api/start", { mode: "full_cycle" });
+$("b-quick").onclick = () => post("/api/start", { mode: "quick_pass" });
+$("b-pause").onclick = () => post("/api/pause");
+$("b-resume").onclick = () => post("/api/resume");
+$("b-clear").onclick = () => post("/api/clear");
+$("b-estop").onclick = () => post("/api/estop");
+
+async function loadRuns() {
+  const runs = await fetch("/api/runs").then((r) => r.json()).catch(() => []);
+  $("runs").innerHTML = runs.length
+    ? runs.slice(0, 8).map((r) =>
+        row(r.run_id,
+            `${r.outcome}${r.stop_reason ? " · " + r.stop_reason : ""}`,
+            r.outcome === "completed" ? "ok" : "warn")).join("")
+    : row("no runs recorded yet", "");
+}
+
+// SSE, with an automatic fall back to polling if the stream drops.
+function connect() {
+  const es = new EventSource("/api/stream");
+  es.onmessage = (ev) => render(JSON.parse(ev.data));
+  es.onerror = () => { es.close(); setTimeout(connect, 3000); };
+}
+connect();
+loadRuns();
+setInterval(loadRuns, 30000);
+</script>
+</body>
+</html>

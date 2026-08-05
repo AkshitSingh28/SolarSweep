@@ -1,29 +1,9 @@
-# Solar Panel Cleaner Robot - Python Dependencies
-# Install with: pip install -r requirements.txt
+# Runtime dependencies. Prefer `pip install -e .` — this file exists for
+# environments that cannot use pyproject.toml.
+#
+# Hardware extras (Raspberry Pi only):  pip install -e ".[hardware]"
+# Development extras:                   pip install -e ".[dev]"
 
-# Web dashboard
-flask>=3.0.0
-flask-socketio>=5.3.6
-eventlet>=0.35.1
-
-# Scheduling
-APScheduler>=3.10.4
-
-# Configuration
-PyYAML>=6.0.1
-
-# Hardware (Raspberry Pi only)
-# RPi.GPIO>=0.7.1         # Uncomment on Raspberry Pi
-# spidev>=3.6             # Uncomment for MCP3008 ADC
-
-# Optional: computer vision for dirt detection
-# opencv-python>=4.9.0
-# numpy>=1.26.0
-# Pillow>=10.2.0
-
-# Optional: Telegram/email notifications
-# requests>=2.31.0
-
-# Development
-pytest>=8.1.0
-pytest-mock>=3.12.0
+PyYAML>=6.0
+Flask>=3.0
+APScheduler>=3.10

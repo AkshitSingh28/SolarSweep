@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "solarsweep"
+version = "2.0.0"
+description = "Rail-guided solar panel cleaning robot: control software, simulator and dashboard"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Akshit Singh" }]
+keywords = ["robotics", "solar", "raspberry-pi", "automation"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering",
+]
+
+# The core runtime is deliberately thin: it has to install on a Pi Zero 2 W.
+# Flask and APScheduler are only needed for `serve`, but both are pure Python
+# and small, so they stay in the base install rather than becoming a
+# "why does serve crash" support question.
+dependencies = [
+  "PyYAML>=6.0",
+  "Flask>=3.0",
+  "APScheduler>=3.10",
+]
+
+[project.optional-dependencies]
+# Installed on the Pi only. Neither wheel builds on a laptop.
+hardware = [
+  "RPi.GPIO>=0.7.1",
+  "spidev>=3.6",
+]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+solarsweep = "solarsweep.cli:main"
+
+[project.urls]
+Repository = "https://github.com/AkshitSingh28/SolarSweep"
+
+[tool.setuptools.packages.find]
+include = ["solarsweep*"]
+
+[tool.setuptools.package-data]
+solarsweep = ["web/templates/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+addopts = "-q --strict-markers"
+filterwarnings = ["error::DeprecationWarning:solarsweep.*"]
+
+[tool.ruff]
+line-length = 96
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+  "B008",    # dataclass field(default_factory=...) in defaults is fine
+  "SIM105",  # contextlib.suppress is not clearer in the shutdown paths
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

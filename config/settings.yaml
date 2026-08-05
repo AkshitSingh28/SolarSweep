@@ -1,0 +1,117 @@
+# SolarSweep configuration.
+#
+# Every key below is read by running code. If you add one, add the code that
+# uses it in the same change — v1's settings.yaml grew keys that nothing ever
+# looked at (water_pulse_ms, overlap_mm, the whole suspension block), which
+# made the config look far more capable than the machine was.
+#
+# This file describes the RECOMMENDED build: the as-built prototype plus a
+# drive encoder. For the machine exactly as photographed, use
+# config/settings.as-built.yaml.
+
+name: "SolarSweep-v2"
+
+panel:
+  # MEASURE THESE. Do not copy a datasheet figure — what matters is how far
+  # the carriage can actually travel between the two limit switches.
+  rail_travel_mm: 1900          # home switch to far switch
+  swath_width_mm: 350           # brush + mop coverage in one pass
+  lead_in_mm: 60                # home switch to where the glass starts
+  lead_out_mm: 60               # far switch back to where the glass ends
+
+drive:
+  # Carriage speed at 100% duty, measured with `solarsweep calibrate`.
+  # This is the number v1 got wrong: it divided a distance by a PWM duty
+  # cycle and treated the result as seconds.
+  duty_to_mmps: 62.0
+  min_duty_pct: 25              # below this the gearmotor stalls instead of turning
+  cleaning_duty_pct: 45
+  transit_duty_pct: 75
+  homing_duty_pct: 35
+  ramp_time_s: 0.6
+  # Encoder ticks per mm of carriage travel. Non-zero enables closed-loop
+  # position AND stall detection. 0 falls back to dead reckoning, and the
+  # robot will refuse unattended runs.
+  encoder_ticks_per_mm: 2.4
+
+cleaning:
+  passes: 2
+  brush_duty_pct: 70
+  brush_spinup_s: 1.5
+  water_pulse_ms: 600           # pulsed, not continuous: saves water, avoids streaks
+  water_interval_s: 8.0
+  dry_pass: false
+
+safety:
+  home_timeout_s: 150.0   # must cover homing from the far end at homing_duty_pct
+  traverse_timeout_factor: 1.8  # of the predicted time for the move
+  traverse_timeout_max_s: 300.0
+  stall_window_s: 2.5           # no measured motion for this long...
+  stall_min_travel_mm: 4.0      # ...having moved less than this => stall
+  overcurrent_a: 0.0            # 0 = no current sensing fitted
+  overcurrent_grace_s: 1.0
+  watchdog_timeout_s: 3.0
+  rain_blocks_start: true
+  rain_aborts_run: true
+  obstacle_stops_run: true
+  reference_on_start: true      # first cycle proves both limit switches and
+                                # measures the real rail length
+  rail_travel_tolerance_pct: 10.0
+  max_consecutive_faults: 3
+
+pins:
+  # BCM numbering. Physical pin map: docs/WIRING.md
+  drive_in1: 17
+  drive_in2: 27
+  drive_en: 22
+  brush_in1: 5
+  brush_in2: 6
+  brush_en: 13
+  relay_pump: 16
+  relay_aux: 20
+  limit_home: 19
+  limit_far: 18
+  estop_button: 4
+  rain_sensor: 12
+  obstacle_sensor: 23
+  water_pressure: 24
+  encoder_a: 25
+  encoder_b: 26
+  # Wire limits and the e-stop normally-closed so a cut wire reads as
+  # "triggered" rather than "all clear".
+  limits_normally_closed: true
+  estop_normally_closed: true
+  relays_active_low: true       # true for the common blue 2-channel boards
+
+triggers:
+  dust_threshold: 0             # 0 = always clean when asked; raise once the
+                                # dust sensor has been characterised
+  min_hours_between_runs: 6.0
+
+scheduler:
+  enabled: false                # turn on only after a supervised run succeeds
+  timezone: "Asia/Kolkata"
+  jobs:
+    - cron: "30 6 * * *"        # 06:30 daily, before the panel gets hot
+      mode: "full_cycle"
+    - cron: "0 18 * * 0"        # 18:00 Sundays
+      mode: "quick_pass"
+
+web:
+  enabled: true
+  host: "127.0.0.1"             # bind wider only with SOLARSWEEP_WEB_TOKEN set
+  port: 5000
+
+logging:
+  level: "INFO"
+  file: "logs/solarsweep.log"
+  max_bytes: 5242880
+  backup_count: 3
+  telemetry_dir: "logs/runs"
+
+sim:
+  time_scale: 20.0              # 1.0 = real time, 0 = as fast as possible
+  efficiency: 0.92
+  dust_baseline: 260
+  dust_noise: 12
+  fault: ""                     # e.g. "rain@30" or "stuck_limit_far"

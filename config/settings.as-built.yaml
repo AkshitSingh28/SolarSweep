@@ -1,0 +1,106 @@
+# The prototype exactly as photographed — no encoder, no current sensing.
+#
+#     solarsweep -c config/settings.as-built.yaml run --sim
+#
+# Run it and you will see the robot warn that stall detection is unavailable,
+# and refuse to run unattended. That is correct: with no measured position,
+# nothing in software can tell "driving along the rail" apart from "pinned
+# against a hard stop with the motor howling". The deadline is the only
+# backstop, and it bounds the damage rather than preventing it.
+#
+# Fixing that is one hall-effect sensor and a magnet on the drive wheel.
+# See docs/COMMISSIONING.md, step 6.
+
+name: "SolarSweep-prototype"
+
+panel:
+  rail_travel_mm: 1900          # MEASURE IT. This is a guess from photographs.
+  swath_width_mm: 350
+  lead_in_mm: 60
+  lead_out_mm: 60
+
+drive:
+  duty_to_mmps: 62.0            # UNVERIFIED — run `solarsweep calibrate`
+  min_duty_pct: 25
+  cleaning_duty_pct: 45
+  transit_duty_pct: 75
+  homing_duty_pct: 35
+  ramp_time_s: 0.6
+  encoder_ticks_per_mm: 0.0     # no encoder fitted
+
+cleaning:
+  passes: 1                     # one supervised pass until the rig is trusted
+  brush_duty_pct: 60
+  brush_spinup_s: 1.5
+  water_pulse_ms: 600
+  water_interval_s: 8.0
+  dry_pass: false
+
+safety:
+  # Traverse timeouts are tighter than the recommended build: with no stall
+  # detection the deadline is the only thing between a jam and a stripped
+  # gearbox. home_timeout_s cannot be squeezed the same way — it has to cover
+  # homing from the far end at homing_duty_pct, and config validation will
+  # reject the file if it does not.
+  home_timeout_s: 120.0
+  traverse_timeout_factor: 1.5
+  traverse_timeout_max_s: 120.0
+  stall_window_s: 2.5
+  stall_min_travel_mm: 4.0
+  overcurrent_a: 0.0
+  overcurrent_grace_s: 1.0
+  watchdog_timeout_s: 3.0
+  rain_blocks_start: true
+  rain_aborts_run: true
+  obstacle_stops_run: true
+  reference_on_start: true      # first cycle proves both limit switches and
+                                # measures the real rail length
+  rail_travel_tolerance_pct: 10.0
+  max_consecutive_faults: 2
+
+pins:
+  drive_in1: 17
+  drive_in2: 27
+  drive_en: 22
+  brush_in1: 5
+  brush_in2: 6
+  brush_en: 13
+  relay_pump: 16
+  relay_aux: 20
+  limit_home: 19
+  limit_far: 18
+  estop_button: 4
+  rain_sensor: 12
+  obstacle_sensor: 23
+  water_pressure: 24
+  encoder_a: -1                 # -1 = not fitted
+  encoder_b: -1
+  limits_normally_closed: true
+  estop_normally_closed: true
+  relays_active_low: true
+
+triggers:
+  dust_threshold: 0
+  min_hours_between_runs: 6.0
+
+scheduler:
+  enabled: false                # unattended runs are refused anyway, see above
+
+web:
+  enabled: true
+  host: "127.0.0.1"
+  port: 5000
+
+logging:
+  level: "DEBUG"                # verbose while bringing the machine up
+  file: "logs/solarsweep.log"
+  max_bytes: 5242880
+  backup_count: 3
+  telemetry_dir: "logs/runs"
+
+sim:
+  time_scale: 20.0
+  efficiency: 0.92
+  dust_baseline: 260
+  dust_noise: 12
+  fault: ""
