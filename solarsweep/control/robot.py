@@ -387,12 +387,18 @@ class SolarSweepRobot:
             "position_mm": round(self.axis.position_mm, 1),
             "position_source": "encoder" if measured is not None else "dead-reckoned",
             "rail_travel_mm": self.settings.panel.rail_travel_mm,
+            # The dashboard draws the rail to scale, so it needs the geometry
+            # as well as the position.
+            "lead_in_mm": self.settings.panel.lead_in_mm,
+            "lead_out_mm": self.settings.panel.lead_out_mm,
             "homed": self.axis.homed,
+            "referenced": self.axis.referenced,
             "paused": self.pause_gate.paused,
             "pass": self._pass_index,
             "passes_planned": self._passes_planned,
             "brush_running": self.head.running,
             "water_enabled": self.head.water_enabled,
+            "pump_on": self.head.pump_on,
             "water_pulses": self.head.pulses,
             "stall_protection": self.axis.stall_protection_available,
             "consecutive_faults": self._consecutive_faults,

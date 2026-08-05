@@ -44,6 +44,11 @@ class CleaningHead:
     def water_enabled(self) -> bool:
         return self._water_enabled
 
+    @property
+    def pump_on(self) -> bool:
+        """Whether the pump is energised *right now*, mid-pulse."""
+        return self._pump_on
+
     def start(self, *, allow_water: bool = True) -> None:
         """Spin the brush up, then decide whether water is available."""
         self._board.set_motor(MotorId.BRUSH, self._cfg.brush_duty_pct)
