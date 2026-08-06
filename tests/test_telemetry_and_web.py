@@ -60,6 +60,38 @@ def test_history_is_empty_when_nothing_has_run(tmp_path):
     assert RunHistory(tmp_path / "nothing").load() == []
 
 
+def test_a_write_racing_finish_does_not_kill_the_cycle(tmp_path):
+    """An e-stop from the dashboard thread runs finish() and closes the handle.
+    If the control thread is between event()'s guard and its write when that
+    happens, it must drop the line rather than raise into the cycle.
+
+    This reproduced as a flaky AttributeError under CI's timing before the
+    guard moved inside the lock, so the interleaving is forced here rather
+    than raced for.
+    """
+    recorder = RunRecorder(tmp_path, mode="full_cycle")
+    real_lock = recorder._lock
+
+    class LosesTheRace:
+        """Closes the handle exactly where the other thread's finish() would."""
+
+        def __enter__(self):
+            real_lock.acquire()
+            recorder._fh.close()
+            recorder._fh = None
+            return self
+
+        def __exit__(self, *exc):
+            real_lock.release()
+            return False
+
+    recorder._lock = LosesTheRace()
+    recorder.event("tick", position_mm=900)  # must not raise
+
+    recorder._lock = real_lock
+    assert recorder.summary.events == 1
+
+
 def test_telemetry_failure_does_not_stop_the_robot(tmp_path, robot, settings):
     """A read-only SD card must not prevent a cycle."""
     blocked = tmp_path / "blocked"

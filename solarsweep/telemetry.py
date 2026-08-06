@@ -107,9 +107,17 @@ class RunRecorder:
             return
         line = json.dumps(record, separators=(",", ":"))
         with self._lock:
+            # Re-read under the lock. The check above is only a fast path: an
+            # e-stop from the dashboard thread can run finish() and close the
+            # handle while this thread is queued here, and a stale local would
+            # then write to None. Losing telemetry must never stop the machine.
+            fh = self._fh
+            if fh is None:
+                logger.debug("telemetry(%s) dropped: run already finished", kind)
+                return
             try:
-                self._fh.write(line + "\n")
-                self._fh.flush()
+                fh.write(line + "\n")
+                fh.flush()
             except OSError as exc:  # pragma: no cover
                 logger.warning("telemetry write failed: %s", exc)
 
