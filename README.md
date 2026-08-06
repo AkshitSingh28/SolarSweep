@@ -131,7 +131,8 @@ docs/
 ├── COMMISSIONING.md     bring-up procedure for the physical machine
 ├── WIRING.md            pin map and wiring notes
 ├── BOM.md               parts, with what is confirmed vs assumed
-└── ARCHITECTURE.md      why the code is shaped this way
+├── ARCHITECTURE.md      why the code is shaped this way
+└── COMMERCIAL.md        what this could be sold as, and what would have to change
 ```
 
 ---
